@@ -28,17 +28,34 @@ def root():
     return {"message": "纳斯达克指数基金查询服务", "docs": "/docs"}
 
 
+NASDAQ_KEYWORDS = ["纳指", "纳斯达克", "QQQ", "NAS"]
+
+
+def filter_nasdaq_funds(df):
+    if df is None or df.empty:
+        return df
+    
+    mask = df["名称"].apply(lambda x: any(kw in str(x) for kw in NASDAQ_KEYWORDS))
+    return df[mask]
+
+
 @app.get("/api/funds/nasdaq", response_model=List[FundInfo])
 def get_nasdaq_funds():
     try:
         logger.info("开始获取纳斯达克指数基金数据...")
-        df = ak.fund_etf_category_sina(symbol="纳斯达克指数基金")
+        df = ak.fund_etf_category_sina(symbol="ETF基金")
         
         if df is None or df.empty:
-            logger.warning("未获取到数据")
+            logger.warning("未获取到 ETF 数据")
             return []
         
-        records = df.to_dict(orient="records")
+        nasdaq_df = filter_nasdaq_funds(df)
+        
+        if nasdaq_df is None or nasdaq_df.empty:
+            logger.warning("未筛选到纳斯达克相关基金")
+            return []
+        
+        records = nasdaq_df.to_dict(orient="records")
         funds = []
         for record in records:
             fund = FundInfo(
